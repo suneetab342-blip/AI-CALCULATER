@@ -1,0 +1,336 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<meta name="theme-color" content="#080b14">
+<title>Nova Premium Calculator</title>
+<style>
+:root{
+ --bg:#080b14;--panel:#111827;--key:#1b2638;--text:#f4f7ff;
+ --muted:#8fa0b8;--cyan:#43dcff;--purple:#c49aff;--border:#29364b;
+}
+body.light{
+ --bg:#eef3fa;--panel:#ffffff;--key:#e4ebf5;--text:#152036;
+ --muted:#65738a;--cyan:#007caa;--purple:#783cbe;--border:#ccd6e5;
+}
+*{box-sizing:border-box}
+body{
+ margin:0;min-height:100vh;background:var(--bg);color:var(--text);
+ font-family:system-ui,-apple-system,sans-serif;
+ display:flex;justify-content:center;padding:15px;
+ transition:background .25s,color .25s;
+}
+.app{
+ width:100%;max-width:430px;margin:auto;background:var(--panel);
+ border:1px solid var(--border);border-radius:28px;padding:18px;
+ box-shadow:0 20px 60px #0003;
+}
+header{display:flex;justify-content:space-between;align-items:center;gap:8px}
+.brand{font-size:26px;font-weight:800;letter-spacing:-1px}
+.brand span{color:var(--cyan)}
+.controls{display:flex;gap:7px}
+.small{
+ border:1px solid var(--border);background:var(--key);color:var(--text);
+ border-radius:12px;padding:9px 11px;font-size:13px;cursor:pointer;
+}
+.tabs{display:flex;gap:8px;margin:22px 0 12px}
+.tab{flex:1;padding:11px;border-radius:12px;border:1px solid var(--border);
+ background:var(--key);color:var(--muted);font-weight:700}
+.tab.active{background:var(--cyan);color:#07131a;border-color:var(--cyan)}
+.display{
+ background:var(--bg);border:1px solid var(--border);border-radius:20px;
+ min-height:155px;padding:18px;margin:12px 0 18px;
+ display:flex;flex-direction:column;justify-content:flex-end;overflow:hidden;
+}
+.label{color:var(--muted);font-size:11px;letter-spacing:2px}
+#expression{margin-top:15px;color:var(--muted);font-size:17px;
+ overflow-x:auto;text-align:right;white-space:nowrap;min-height:24px}
+#result{font-size:clamp(34px,9vw,48px);font-weight:500;text-align:right;
+ overflow-x:auto;white-space:nowrap;font-variant-numeric:tabular-nums}
+.grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}
+button{font-family:inherit;cursor:pointer;touch-action:manipulation}
+.key{
+ height:59px;border:1px solid var(--border);border-radius:17px;
+ background:var(--key);color:var(--text);font-size:21px;font-weight:600;
+ box-shadow:0 4px 0 #0002;transition:transform .08s,filter .1s;
+}
+.key:active{transform:translateY(3px);filter:brightness(1.15);box-shadow:none}
+.op{color:var(--cyan);font-size:24px}
+.util{color:var(--purple)}
+.equal{background:var(--cyan);color:#06131a;border-color:var(--cyan);font-size:25px}
+.science{display:none;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;margin-bottom:12px}
+.science.show{display:grid}
+.science .key{height:44px;font-size:15px;color:var(--purple)}
+.footer{text-align:center;color:var(--muted);font-size:11px;margin-top:20px}
+#historyPanel{display:none;margin:15px 0;padding:12px;background:var(--bg);
+ border:1px solid var(--border);border-radius:15px}
+.historyHead{display:flex;justify-content:space-between;align-items:center}
+#historyList{max-height:180px;overflow:auto}
+.historyItem{padding:10px 0;border-bottom:1px solid var(--border);
+ font-size:14px;overflow-wrap:anywhere}
+.historyItem button{float:right;border:0;background:transparent;color:var(--cyan)}
+@media(max-width:360px){.app{padding:12px}.key{height:53px}.grid{gap:7px}}
+</style>
+</head>
+<body>
+<main class="app">
+<header>
+ <div class="brand">Nova<span>.</span></div>
+ <div class="controls">
+  <button class="small" id="angleBtn">DEG</button>
+  <button class="small" id="themeBtn" aria-label="Toggle theme">☀️</button>
+  <button class="small" id="historyBtn">📜</button>
+ </div>
+</header>
+
+<div class="tabs">
+ <button class="tab active" id="standardTab">Standard</button>
+ <button class="tab" id="scientificTab">Scientific</button>
+</div>
+
+<section class="display">
+ <div class="label">NOVA · CALCULATOR</div>
+ <div id="expression" aria-live="polite"></div>
+ <div id="result" aria-live="polite">0</div>
+</section>
+
+<section id="scienceKeys" class="science">
+ <button class="key" data-fn="sin">sin</button>
+ <button class="key" data-fn="cos">cos</button>
+ <button class="key" data-fn="tan">tan</button>
+ <button class="key" data-fn="sqrt">√x</button>
+ <button class="key" data-fn="log">log</button>
+ <button class="key" data-fn="ln">ln</button>
+ <button class="key" data-fn="square">x²</button>
+ <button class="key" data-fn="inverse">1/x</button>
+ <button class="key" data-insert="(">(</button>
+ <button class="key" data-insert=")">)</button>
+ <button class="key" data-insert="pi">π</button>
+ <button class="key" data-insert="e">e</button>
+ <button class="key" data-insert="^">xʸ</button>
+ <button class="key" data-insert="%">%</button>
+</section>
+
+<section class="grid" id="mainKeys">
+ <button class="key util" data-action="clear">AC</button>
+ <button class="key util" data-action="back">⌫</button>
+ <button class="key op" data-insert="%">%</button>
+ <button class="key op" data-insert="/">÷</button>
+
+ <button class="key" data-insert="7">7</button>
+ <button class="key" data-insert="8">8</button>
+ <button class="key" data-insert="9">9</button>
+ <button class="key op" data-insert="*">×</button>
+
+ <button class="key" data-insert="4">4</button>
+ <button class="key" data-insert="5">5</button>
+ <button class="key" data-insert="6">6</button>
+ <button class="key op" data-insert="-">−</button>
+
+ <button class="key" data-insert="1">1</button>
+ <button class="key" data-insert="2">2</button>
+ <button class="key" data-insert="3">3</button>
+ <button class="key op" data-insert="+">+</button>
+
+ <button class="key util" data-action="sign">+/−</button>
+ <button class="key" data-insert="0">0</button>
+ <button class="key" data-insert=".">.</button>
+ <button class="key equal" data-action="equals">=</button>
+</section>
+
+<section id="historyPanel">
+ <div class="historyHead">
+  <strong>Calculation History</strong>
+  <button class="small" id="clearHistory">Clear</button>
+ </div>
+ <div id="historyList"><p style="color:var(--muted)">No calculations yet.</p></div>
+</section>
+
+<div class="footer">NOVA CALCULATOR · FAST · SIMPLE · OFFLINE</div>
+</main>
+
+<script>
+(function(){
+"use strict";
+
+const $=id=>document.getElementById(id);
+const result=$("result"), expression=$("expression");
+let input="", justCalculated=false, degree=true, scientific=false;
+let history=[];
+
+function show(value){
+ result.textContent=value;
+}
+function pretty(s){
+ return s.replace(/\*/g,"×").replace(/\//g,"÷")
+         .replace(/pi/g,"π").replace(/\be\b/g,"e");
+}
+function insert(value){
+ if(justCalculated && /[0-9.(pie]/i.test(value)) input="";
+ justCalculated=false;
+ if(value==="pi" || value==="e"){
+  if(/[\d.)]$/.test(input)) input+="*";
+  input+=value;
+ }else{
+  input+=value;
+ }
+ expression.textContent=pretty(input);
+ preview();
+}
+function back(){
+ input=input.slice(0,-1);
+ justCalculated=false;
+ expression.textContent=pretty(input);
+ preview();
+}
+function clearAll(){
+ input="";justCalculated=false;
+ expression.textContent="";show("0");
+}
+function safeCalculate(source){
+ if(!source.trim()) return null;
+ let s=source.replace(/\s+/g,"");
+ s=s.replace(/(\d|\))(?=(pi|e|\())/g,"$1*");
+ s=s.replace(/(pi|e)(?=\d|\()/g,"$1*");
+ s=s.replace(/pi/g,"Math.PI").replace(/\be\b/g,"Math.E");
+ s=s.replace(/\^/g,"**");
+ s=s.replace(/(\d+(?:\.\d+)?)%/g,"($1/100)");
+ if(!/^[0-9+\-*/().,%MathPIE]*$/.test(s)) throw Error("Invalid expression");
+ if(s.includes("undefined") || s.includes("NaN")) throw Error("Invalid expression");
+ const value=Function('"use strict";return ('+s+')')();
+ if(typeof value!=="number" || !Number.isFinite(value)) throw Error("Math error");
+ return Math.abs(value)<1e-12?0:value;
+}
+function format(n){
+ return Number(n.toPrecision(12)).toString();
+}
+function preview(){
+ if(!input || /[+\-*/.^]$/.test(input)) return;
+ try{
+  const n=safeCalculate(input);
+  if(n!==null) show(format(n));
+ }catch(e){}
+}
+function calculate(){
+ try{
+  const original=input;
+  const n=safeCalculate(input);
+  if(n===null)return;
+  const answer=format(n);
+  expression.textContent=pretty(original)+" =";
+  input=answer;
+  show(answer);
+  history.unshift({formula:pretty(original),answer});
+  history=history.slice(0,100);
+  renderHistory();
+  $("historyBtn").style.borderColor="var(--cyan)";
+  justCalculated=true;
+ }catch(e){
+  show("Error");
+ }
+}
+function toggleSign(){
+ if(!input){input="-";expression.textContent="-";return;}
+ try{
+  input="("+input+")*-1";
+  expression.textContent=pretty(input);
+  preview();
+ }catch(e){}
+}
+function scientificFunction(fn){
+ try{
+  let n=safeCalculate(input||"0");
+  if(n===null)n=0;
+  let x=n;
+  if(fn==="sin")x=Math.sin(degree?n*Math.PI/180:n);
+  if(fn==="cos")x=Math.cos(degree?n*Math.PI/180:n);
+  if(fn==="tan")x=Math.tan(degree?n*Math.PI/180:n);
+  if(fn==="sqrt")x=Math.sqrt(n);
+  if(fn==="log")x=Math.log10(n);
+  if(fn==="ln")x=Math.log(n);
+  if(fn==="square")x=n*n;
+  if(fn==="inverse")x=1/n;
+  if(!Number.isFinite(x))throw Error("Math error");
+  const answer=format(Math.abs(x)<1e-12?0:x);
+  expression.textContent=fn+"("+pretty(input||"0")+") =";
+  input=answer;show(answer);justCalculated=true;
+  history.unshift({formula:expression.textContent,answer});
+  history=history.slice(0,100);renderHistory();
+ }catch(e){show("Error");}
+}
+function renderHistory(){
+ const list=$("historyList");
+ list.innerHTML="";
+ if(!history.length){
+  list.innerHTML='<p style="color:var(--muted)">No calculations yet.</p>';return;
+ }
+ history.forEach((h,i)=>{
+  const row=document.createElement("div");
+  row.className="historyItem";
+  const text=document.createElement("span");
+  text.textContent=h.formula+" "+h.answer;
+  const btn=document.createElement("button");
+  btn.textContent="Use";
+  btn.onclick=()=>{
+   input=h.answer;show(input);expression.textContent=h.formula;
+   justCalculated=true;
+  };
+  row.append(text,btn);list.appendChild(row);
+ });
+}
+document.querySelectorAll("[data-insert]").forEach(btn=>{
+ btn.addEventListener("click",()=>insert(btn.dataset.insert));
+});
+document.querySelectorAll("[data-action]").forEach(btn=>{
+ btn.addEventListener("click",()=>{
+  const a=btn.dataset.action;
+  if(a==="clear")clearAll();
+  if(a==="back")back();
+  if(a==="equals")calculate();
+  if(a==="sign")toggleSign();
+ });
+});
+document.querySelectorAll("[data-fn]").forEach(btn=>{
+ btn.addEventListener("click",()=>scientificFunction(btn.dataset.fn));
+});
+$("btn-inline-backspace")?.addEventListener("click",back);
+
+$("standardTab").onclick=()=>{
+ scientific=false;
+ $("scienceKeys").classList.remove("show");
+ $("standardTab").classList.add("active");
+ $("scientificTab").classList.remove("active");
+};
+$("scientificTab").onclick=()=>{
+ scientific=true;
+ $("scienceKeys").classList.add("show");
+ $("scientificTab").classList.add("active");
+ $("standardTab").classList.remove("active");
+};
+$("angleBtn").onclick=()=>{
+ degree=!degree;
+ $("angleBtn").textContent=degree?"DEG":"RAD";
+};
+$("themeBtn").onclick=()=>{
+ document.body.classList.toggle("light");
+ $("themeBtn").textContent=document.body.classList.contains("light")?"🌙":"☀️";
+};
+$("historyBtn").onclick=()=>{
+ const p=$("historyPanel");
+ p.style.display=p.style.display==="block"?"none":"block";
+};
+$("clearHistory").onclick=()=>{
+ history=[];renderHistory();
+};
+document.addEventListener("keydown",e=>{
+ if(/^[0-9.]$/.test(e.key))insert(e.key);
+ else if(["+","-","*","/","(",")","%","^"].includes(e.key))insert(e.key);
+ else if(e.key==="Enter"||e.key==="="){e.preventDefault();calculate();}
+ else if(e.key==="Backspace")back();
+ else if(e.key==="Escape")clearAll();
+});
+})();
+</script>
+</body>
+  </html>
